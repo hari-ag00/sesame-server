@@ -98,21 +98,30 @@ class ModelRunner:
         # Store model configuration
         self.model = model
         self.config = model.config
-
+        
+        # Extract model configuration parameters
+        # For csm-1b, we know the backbone is 16 layers with 32 heads and decoder is 4 layers with 8 heads
+        # These values are from FLAVORS in the original models.py
+        backbone_layers = 16   # llama3_2_1B config
+        backbone_heads = 32
+        backbone_head_dim = 64  # 2048 / 32
+        
+        decoder_layers = 4     # llama3_2_100M config
+        decoder_heads = 8
+        decoder_head_dim = 128  # 1024 / 8
+        
+        print(f"Using model configuration: backbone={backbone_layers}L/{backbone_heads}H, decoder={decoder_layers}L/{decoder_heads}H")
+        
         # Initialize cache manager
-        backbone_config = model.backbone
-        decoder_config = model.decoder
-
         self.cache_manager = CacheManager(
-            backbone_layers=backbone_config.num_layers,
-            backbone_heads=backbone_config.num_heads,
-            backbone_head_dim=backbone_config.head_dim,
-            decoder_layers=decoder_config.num_layers,
-            decoder_heads=decoder_config.num_heads,
-            decoder_head_dim=decoder_config.head_dim,
+            backbone_layers=backbone_layers,
+            backbone_heads=backbone_heads,
+            backbone_head_dim=backbone_head_dim,
+            decoder_layers=decoder_layers,
+            decoder_heads=decoder_heads,
+            decoder_head_dim=decoder_head_dim,
             dtype=self.dtype,
         )
-
         # Load tokenizers
         print("Loading tokenizers...")
         self.text_tokenizer = load_llama3_tokenizer()
