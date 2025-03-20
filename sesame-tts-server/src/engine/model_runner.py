@@ -189,12 +189,30 @@ class ModelRunner:
 
         return torch.cat([text_tokens, audio_tokens], dim=0), torch.cat([text_masks, audio_masks], dim=0)
 
+    # @torch.inference_mode()
+    # async def _generate_for_request(self, request: Request) -> torch.Tensor:
+    #     """Generate audio for a single request."""
+    #     # Reset model caches
+    #     self.model.reset_caches()
+
+    #     # Prepare request data
+    #     text = request.text
+    #     speaker = request.speaker
+    #     context = request.context
+    #     max_audio_length_ms = request.max_audio_length_ms
+    #     temperature = request.temperature
+    #     topk = request.topk
+
     @torch.inference_mode()
     async def _generate_for_request(self, request: Request) -> torch.Tensor:
         """Generate audio for a single request."""
-        # Reset model caches
+        # Ensure the model caches are properly set up
+        # First reset any existing caches
         self.model.reset_caches()
-
+        
+        # Then explicitly set up the caches with batch size 1
+        self.model.setup_caches(1)
+        
         # Prepare request data
         text = request.text
         speaker = request.speaker
