@@ -246,57 +246,55 @@ class BatchManager:
     async def get_next_batch(self, max_batch_size: int) -> List[Request]:
         """
         Get the next batch of requests to process.
-
+        
         Args:
             max_batch_size: Maximum number of requests to include in the batch
-
+            
         Returns:
             List of Request objects to process
         """
         batch = []
-
+        
         async with self.lock:
+            # Print waiting request count for debugging
+            total_waiting = sum(len(reqs) for reqs in self.waiting_requests.values())
+            if total_waiting > 0:
+                print(f"get_next_batch: {total_waiting} waiting requests, {len(self.active_requests)} active requests")
+            
             # Check if we have any waiting requests
             if not any(self.waiting_requests.values()):
-                # Reset the event since there are no requests
-                self.new_request_event.clear()
                 return []
-
+            
             # Get requests in priority order
             priorities = sorted(self.waiting_requests.keys())
-
+            
             for priority in priorities:
                 # Get requests for this priority
                 priority_requests = self.waiting_requests[priority]
-
+                
                 # Take as many as we can fit in the batch
                 available_slots = max_batch_size - len(batch)
                 to_take = min(available_slots, len(priority_requests))
-
+                
                 if to_take > 0:
+                    print(f"Taking {to_take} requests from priority {priority}")
                     # Take the oldest requests first
                     for _ in range(to_take):
                         request = priority_requests.pop(0)
                         request.mark_running()
                         batch.append(request)
-
+                        
                         # Add to active requests
                         self.active_requests[request.request_id] = request
-
+                    
                     # If we've taken all requests at this priority, clean up
                     if not priority_requests:
                         del self.waiting_requests[priority]
-
+                
                 # If we've filled the batch, we're done
                 if len(batch) >= max_batch_size:
                     break
-
-            # If we took some requests but not all, keep the event set
-            if batch and any(self.waiting_requests.values()):
-                self.new_request_event.set()
-            else:
-                self.new_request_event.clear()
-
+        
         return batch
 
     async def wait_for_requests(self, timeout: Optional[float] = None) -> bool:
